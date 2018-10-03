@@ -25,6 +25,7 @@
 #include "cJSON.h"
 
 #include "tcs3471_interface.h"
+#include "t6713.h"
 
 TCS3471Handle_t tcs3471;
 
@@ -276,6 +277,7 @@ static void sensor_task(void* pvParameters)
         uint16_t red = 0;
         uint16_t green = 0;
         uint16_t blue = 0;
+        uint16_t co2ppm = 0;
 
         if (tcs3471_rgbcValid(tcs3471)) {
             clear = tcs3471_readCData(tcs3471);
@@ -287,6 +289,9 @@ static void sensor_task(void* pvParameters)
         } else {
             printf("WARNING: Light sensor reading invalid \r\n");
         }
+
+        co2ppm = t6713_read_gas_ppm();
+        printf("CO2 sensor reading: %u PPM\r\n", co2ppm);
 
         cJSON *root = cJSON_CreateObject();
         if (root == NULL) {
@@ -321,6 +326,13 @@ static void sensor_task(void* pvParameters)
             goto end;
         }
         cJSON_AddItemToObject(root, "blue", _blue);
+
+        cJSON *_co2ppm = cJSON_CreateNumber(co2ppm);
+        if (_co2ppm == NULL) {
+            printf("Failed to create JSON co2 object\r\n");
+            goto end;
+        }
+        cJSON_AddItemToObject(root, "co2", _co2ppm);
 
         char *json_msg = cJSON_Print(root);
         if (json_msg == NULL) {
