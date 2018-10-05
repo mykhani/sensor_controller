@@ -27,6 +27,7 @@
 #include "tcs3471_interface.h"
 #include "t6713.h"
 #include "mpl115a2.h"
+#include <sht3x.h>
 
 TCS3471Handle_t tcs3471;
 
@@ -255,6 +256,13 @@ static void sensor_task(void* pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     bool tcs3471_detected;
+    static sht3x_sensor_t* sensor = NULL;
+
+    if ((sensor = sht3x_init_sensor (I2C_BUS, SHT3x_ADDR_1))) {
+        printf("SHT3x sensor initialized\r\n");
+    } else {
+        printf("Could not initialize SHT3x sensor\n");
+    }
 
     tcs3471 = tcs3471_create();
 
@@ -280,6 +288,8 @@ static void sensor_task(void* pvParameters)
         uint16_t blue = 0;
         uint16_t co2ppm = 0;
         float air_pressure = 0.0f;
+        float temperature = 0.0f;
+        float humidity = 0.0f;
 
         if (tcs3471_rgbcValid(tcs3471)) {
             clear = tcs3471_readCData(tcs3471);
@@ -298,11 +308,31 @@ static void sensor_task(void* pvParameters)
         air_pressure = mpl115_read_pressure();
         printf("Air Pressure sensor reading: %f kPa \r\n", air_pressure);
 
+        if (sht3x_measure (sensor, &temperature, &humidity)) {
+            printf("%.3f SHT3x Sensor: %.2f °C, %.2f %%\n",
+            (double)sdk_system_get_time()*1e-3, temperature, humidity);
+        } else {
+            printf("SHT3x Sensor: reading error\r\n");
+        }
+
         cJSON *root = cJSON_CreateObject();
         if (root == NULL) {
             printf("Failed to create JSON root object\r\n");
             goto end;
         }
+        cJSON *_temperature = cJSON_CreateNumber(temperature);
+        if (_temperature == NULL) {
+            printf("Failed to create JSON temperature object\r\n");
+            goto end;
+        }
+        cJSON_AddItemToObject(root, "temperature", _temperature);
+
+        cJSON *_humidity = cJSON_CreateNumber(humidity);
+        if (_humidity == NULL) {
+            printf("Failed to create JSON humidity object\r\n");
+            goto end;
+        }
+        cJSON_AddItemToObject(root, "humidity", _humidity);
 
         cJSON *_clear = cJSON_CreateNumber(clear);
         if (_clear == NULL) {
