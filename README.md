@@ -28,3 +28,6 @@ $ git clone https://github.com/mykhani/esp-open-rtos.git
 $ cd esp-open-rtos
 $ git checkout indoor-farming
 ```
+
+# Link to Wiki page
+https://github.com/mykhani/sensor_controller/wiki
